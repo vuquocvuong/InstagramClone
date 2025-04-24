@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Image } from 'react-native';
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { register, login } from '../services/authService';
 
 const AuthScreen = () => {
@@ -8,24 +16,21 @@ const AuthScreen = () => {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Regex for email and password validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Standard email format
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/; 
-  // At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
   const validateInputs = () => {
     let isValid = true;
     setEmailError('');
     setPasswordError('');
 
-    // Validate email
     if (!emailRegex.test(email)) {
       setEmailError('Vui lòng nhập email hợp lệ (ví dụ: user@domain.com)');
       isValid = false;
     }
 
-    // Validate password
     if (!passwordRegex.test(password)) {
       setPasswordError(
         'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
@@ -38,24 +43,28 @@ const AuthScreen = () => {
 
   const handleRegister = async () => {
     if (!validateInputs()) return;
-
+    setLoading(true);
     try {
       await register(email, password);
       alert('Đăng ký thành công');
       setIsRegisterMode(false);
     } catch (err) {
       alert('Lỗi đăng ký: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogin = async () => {
     if (!validateInputs()) return;
-
+    setLoading(true);
     try {
       await login(email, password);
       alert('Đăng nhập thành công');
     } catch (err) {
       alert('Lỗi đăng nhập: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,14 +101,18 @@ const AuthScreen = () => {
       />
       {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={isRegisterMode ? handleRegister : handleLogin}
-      >
-        <Text style={styles.buttonText}>
-          {isRegisterMode ? 'Đăng ký' : 'Đăng nhập'}
-        </Text>
-      </TouchableOpacity>
+      {loading ? (
+        <ActivityIndicator size="large" color="#0095f6" style={{ marginTop: 10 }} />
+      ) : (
+        <TouchableOpacity
+          style={styles.button}
+          onPress={isRegisterMode ? handleRegister : handleLogin}
+        >
+          <Text style={styles.buttonText}>
+            {isRegisterMode ? 'Đăng ký' : 'Đăng nhập'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity onPress={toggleAuthMode}>
         <Text style={styles.linkText}>

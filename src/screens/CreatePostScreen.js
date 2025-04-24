@@ -8,8 +8,6 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
-  Platform,
-  PermissionsAndroid,
 } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import storage from '@react-native-firebase/storage';
@@ -22,31 +20,6 @@ const CreatePostScreen = ({ navigation }) => {
   const [uploading, setUploading] = useState(false);
   const [previewUri, setPreviewUri] = useState(null);
 
-  const uploadImageFromUrl = async (url) => {
-    try {
-      const fileName = `${Date.now()}.jpg`;
-      const localPath = `${RNFS.CachesDirectoryPath}/${fileName}`;
-
-      const download = await RNFS.downloadFile({
-        fromUrl: url,
-        toFile: localPath,
-      }).promise;
-
-      if (download.statusCode !== 200) {
-        throw new Error('Tải ảnh thất bại');
-      }
-
-      const ref = storage().ref(`posts/${fileName}`);
-      await ref.putFile(localPath);
-      await RNFS.unlink(localPath);
-
-      return await ref.getDownloadURL();
-    } catch (err) {
-      console.error('Lỗi uploadImageFromUrl:', err);
-      throw err;
-    }
-  };
-
   const uploadPost = async () => {
     if (!imageUrl.trim() || !caption.trim()) {
       return Alert.alert('Thiếu dữ liệu', 'Hãy nhập link ảnh và mô tả!');
@@ -55,10 +28,14 @@ const CreatePostScreen = ({ navigation }) => {
     try {
       setUploading(true);
 
+      const currentUser = auth().currentUser;
+      const email = currentUser.email;
+      const extractedUsername = email?.split('@')[0] || `user_${currentUser.uid.slice(0, 6)}`;
+
       await firestore().collection('posts').add({
-        userId: auth().currentUser.uid,
-        username: auth().currentUser.displayName || 'user123',
-        avatar: auth().currentUser.photoURL || `https://i.pravatar.cc/150?u=user123`,
+        userId: currentUser.uid,
+        username: extractedUsername,
+        avatar: currentUser.photoURL || `https://i.pravatar.cc/150?u=${currentUser.uid}`,
         caption,
         imageUrl,
         createdAt: firestore.FieldValue.serverTimestamp(),
@@ -79,7 +56,6 @@ const CreatePostScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Input Link Ảnh */}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Link ảnh</Text>
         <TextInput
@@ -94,7 +70,6 @@ const CreatePostScreen = ({ navigation }) => {
         />
       </View>
 
-      {/* Preview Ảnh */}
       {previewUri ? (
         <Image source={{ uri: previewUri }} style={styles.image} />
       ) : (
@@ -103,7 +78,6 @@ const CreatePostScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* Input Mô tả */}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Mô tả</Text>
         <TextInput
@@ -116,9 +90,8 @@ const CreatePostScreen = ({ navigation }) => {
         />
       </View>
 
-      {/* Nút Đăng Bài */}
       {uploading ? (
-        <ActivityIndicator size="large" color="#3897f0" />
+        <ActivityIndicator size="large" color="#3897f0" style={{ marginTop: 10 }} />
       ) : (
         <TouchableOpacity onPress={uploadPost} style={styles.button}>
           <Text style={styles.buttonText}>🚀 Đăng bài</Text>
@@ -193,6 +166,9 @@ const styles = StyleSheet.create({
 });
 
 export default CreatePostScreen;
+
+
+
 
 // import { launchImageLibrary } from 'react-native-image-picker';
 // const CreatePostScreen = ({ navigation }) => {

@@ -1,3 +1,5 @@
+import { Animated } from 'react-native';
+import { useRef } from 'react';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -20,6 +22,8 @@ const PostCard = ({ post }) => {
   const [comments, setComments] = useState([]);
   const [showComments, setShowComments] = useState(false);
   const [username, setUsername] = useState('');
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const fetchUsername = () => {
@@ -29,7 +33,7 @@ const PostCard = ({ post }) => {
       }
       try {
         const email = auth().currentUser.email;
-        const extractedUsername = email.split('@')[0]; // Extract part before @
+        const extractedUsername = email.split('@')[0];
         setUsername(extractedUsername);
       } catch (error) {
         console.error('Error extracting username from email:', error);
@@ -98,7 +102,7 @@ const PostCard = ({ post }) => {
         .collection('comments')
         .add({
           content: comment,
-          username: username, // Use the extracted username from email
+          username: username,
           createdAt: firestore.FieldValue.serverTimestamp(),
         });
       setComment('');
@@ -108,6 +112,19 @@ const PostCard = ({ post }) => {
   };
 
   const toggleComments = () => {
+    if (!showComments) {
+      Animated.timing(slideAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
     setShowComments(!showComments);
   };
 
@@ -125,13 +142,32 @@ const PostCard = ({ post }) => {
 
       <View style={styles.actions}>
         <View style={styles.actionButtons}>
-          <TouchableOpacity onPress={toggleLike} style={styles.actionButton}>
-            <Ionicons
-              name={liked ? 'heart' : 'heart-outline'}
-              size={26}
-              color={liked ? '#e1306c' : '#000'}
-            />
+          <TouchableOpacity
+            onPress={() => {
+              Animated.sequence([
+                Animated.spring(scaleAnim, {
+                  toValue: 1.4,
+                  friction: 4,
+                  useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                  toValue: 1,
+                  friction: 3,
+                  useNativeDriver: true,
+                }),
+              ]).start(() => toggleLike());
+            }}
+            style={styles.actionButton}
+          >
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={26}
+                color={liked ? '#e1306c' : '#000'}
+              />
+            </Animated.View>
           </TouchableOpacity>
+
           <TouchableOpacity onPress={toggleComments} style={styles.actionButton}>
             <Ionicons name="chatbubble-outline" size={26} color="#000" />
           </TouchableOpacity>
@@ -153,40 +189,56 @@ const PostCard = ({ post }) => {
         </Text>
       </View>
 
-      {showComments && (
-        <View style={styles.commentSection}>
-          <ScrollView style={styles.commentList}>
-            {comments.length > 0 ? (
-              comments.map((cmt, index) => (
-                <Text key={index} style={styles.commentText}>
-                  <Text style={styles.commentUser}>{cmt.username}</Text>{' '}
-                  {cmt.content}
-                </Text>
-              ))
-            ) : (
-              <Text style={styles.noComments}>Chưa có bình luận nào.</Text>
-            )}
-          </ScrollView>
+      <Animated.View
+        style={[
+          styles.commentSection,
+          {
+            transform: [
+              {
+                translateY: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [100, 0],
+                }),
+              },
+            ],
+            opacity: slideAnim,
+          },
+        ]}
+      >
+        {showComments && (
+          <>
+            <ScrollView style={styles.commentList}>
+              {comments.length > 0 ? (
+                comments.map((cmt, index) => (
+                  <Text key={index} style={styles.commentText}>
+                    <Text style={styles.commentUser}>{cmt.username}</Text>{' '}
+                    {cmt.content}
+                  </Text>
+                ))
+              ) : (
+                <Text style={styles.noComments}>Chưa có bình luận nào.</Text>
+              )}
+            </ScrollView>
 
-          <View style={styles.commentBox}>
-            <Image
-              source={{ uri: post.avatar }}
-              style={styles.commentAvatar}
-            />
-            <TextInput
-              placeholder="Add a comment..."
-              value={comment}
-              onChangeText={setComment}
-              style={styles.commentInput}
-            />
-            <TouchableOpacity onPress={sendComment} disabled={!comment.trim()}>
-              <Text style={[styles.postButton, !comment.trim() && styles.postButtonDisabled]}>
-                Post
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+            <View style={styles.commentBox}>
+              <Image source={{ uri: post.avatar }} style={styles.commentAvatar} />
+              <TextInput
+                placeholder="Add a comment..."
+                value={comment}
+                onChangeText={setComment}
+                style={styles.commentInput}
+              />
+              <TouchableOpacity onPress={sendComment} disabled={!comment.trim()}>
+                <Text
+                  style={[styles.postButton, !comment.trim() && styles.postButtonDisabled]}
+                >
+                  Post
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </Animated.View>
     </View>
   );
 };
